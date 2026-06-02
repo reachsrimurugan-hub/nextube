@@ -127,7 +127,7 @@ const AuthPage = () => {
           <motion.div
             initial={{ scale: 0.8, opacity: 0 }}
             animate={{ scale: 1, opacity: 1 }}
-            className="w-16 h-16 bg-gradient-to-tr from-orange-600 to-orange-400 rounded-[1.25rem] flex items-center justify-center shadow-xl shadow-orange-500/25 mx-auto overflow-hidden p-2 border border-white/10"
+            className="w-20 h-20 flex items-center justify-center shadow-xl mx-auto overflow-hidden p-2 "
           >
             <img
               src={playButtonImg}
