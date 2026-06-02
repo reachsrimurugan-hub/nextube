@@ -6,6 +6,10 @@ import {
   User, CreditCard, Receipt, History, Library, Settings, 
   LogOut, ChevronRight, Volume2, Shield, Bell, Globe, Eye, Pencil 
 } from 'lucide-react';
+import { useAuth } from '../context/AuthContext';
+import { updateProfile as firebaseUpdateProfile } from 'firebase/auth';
+import { auth, db } from '../lib/firebase';
+import { doc, updateDoc } from 'firebase/firestore';
 
 // Import local premium avatars so Vite resolves and bundles them correctly
 import man1 from '../assets/man1.png';
@@ -19,12 +23,14 @@ const DEFAULT_AVATARS = [man1, man2, man3, woman1, woman2, woman3];
 
 const ProfilePage = () => {
   const navigate = useNavigate();
+  const { user, logout } = useAuth();
+
   const [profile, setProfile] = useState({
-    username: 'sri',
-    email: 'reachsrimurugan@gmail.com',
-    tier: 'PREMIUM',
-    avatar: 'src/assets/man1.png',
-    joined: 'May 2026'
+    username: '',
+    email: '',
+    tier: 'Cinema Elite',
+    avatar: man1,
+    joined: 'June 2026'
   });
   
   const [isLoggedIn, setIsLoggedIn] = useState(false);
@@ -35,36 +41,58 @@ const ProfilePage = () => {
   const [editAvatar, setEditAvatar] = useState('');
 
   const handleStartEdit = () => {
-    setEditUsername(profile.username);
-    setEditEmail(profile.email);
-    setEditAvatar(profile.avatar);
+    setEditUsername(profile.username || '');
+    setEditEmail(profile.email || '');
+    setEditAvatar(profile.avatar || man1);
     setIsEditing(true);
   };
 
-  const handleSave = () => {
-    const updated = {
-      ...profile,
-      username: editUsername,
-      email: editEmail,
-      avatar: editAvatar
-    };
-    setProfile(updated);
-    localStorage.setItem('nextube_profile', JSON.stringify(updated));
-    setIsEditing(false);
+  const handleSave = async () => {
+    try {
+      const currentUser = auth.currentUser;
+      if (currentUser) {
+        // Update Firebase Auth profile
+        await firebaseUpdateProfile(currentUser, {
+          displayName: editUsername,
+          photoURL: editAvatar
+        });
+
+        // Update Firestore users collection document
+        const userRef = doc(db, 'users', currentUser.uid);
+        await updateDoc(userRef, {
+          name: editUsername,
+          photoURL: editAvatar,
+          email: editEmail
+        });
+
+        setProfile((prev) => ({
+          ...prev,
+          username: editUsername,
+          email: editEmail,
+          avatar: editAvatar
+        }));
+      }
+      setIsEditing(false);
+    } catch (err) {
+      console.error("Error saving profile details:", err);
+    }
   };
 
   useEffect(() => {
-    const loggedIn = localStorage.getItem('nextube_logged_in') === 'true';
-    setIsLoggedIn(loggedIn);
-    const saved = localStorage.getItem('nextube_profile');
-    if (saved) {
-      setProfile(JSON.parse(saved));
+    setIsLoggedIn(!!user);
+    if (user) {
+      setProfile({
+        username: user.displayName || '',
+        email: user.email || '',
+        tier: 'Cinema Elite',
+        avatar: user.photoURL || man1,
+        joined: 'June 2026'
+      });
     }
-  }, []);
+  }, [user]);
 
   const handleLogout = () => {
-    localStorage.removeItem('nextube_logged_in');
-    localStorage.removeItem('nextube_profile');
+    logout();
     setIsLoggedIn(false);
     navigate('/');
   };
@@ -80,7 +108,7 @@ const ProfilePage = () => {
     <div className="min-h-screen bg-black text-white pb-24 lg:pb-10">
       <CinematicNavbar onSearch={(q) => navigate(`/search/${q}`)} />
 
-      <main className="w-full max-w-[1200px] mx-auto px-4 sm:px-6 lg:px-10 pt-[4.5rem] lg:pt-24 pb-10">
+      <main className="w-full max-w-[1200px] mx-auto px-4 sm:px-6 lg:px-10 pt-[3.75rem] lg:pt-20 pb-10">
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-10 items-start">
           <div className="lg:col-span-4 lg:sticky lg:top-24 space-y-6">
             <p className="text-[11px] font-semibold text-[#8e8e93] uppercase tracking-wider px-1">Account</p>

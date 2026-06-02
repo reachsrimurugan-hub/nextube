@@ -8,11 +8,12 @@ import {
 } from 'lucide-react';
 import debounce from 'lodash.debounce';
 import { useLanguage, languages } from '../context/LanguageContext';
+import { useAuth } from '../context/AuthContext';
 import playButtonImg from '../assets/play-button.png';
 
 const NAV_LINKS = [
   { label: 'Home', to: '/' },
-  { label: 'Travel & Vlogs', to: '/category/TV Series' },
+  { label: 'Categories', to: '/category/TV Series' },
   { label: 'Movies', to: '/category/Movies' },
   { label: 'Anime', to: '/category/Anime' },
 ];
@@ -22,6 +23,8 @@ const CinematicNavbar = ({ onSearch, searchResults = [], onVideoSelect }) => {
   const location = useLocation();
   const isHomepage = location.pathname === '/';
   
+  const { user, logout } = useAuth();
+
   const [isScrolled, setIsScrolled] = useState(false);
   const [isNavbarVisible, setIsNavbarVisible] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
@@ -40,18 +43,20 @@ const CinematicNavbar = ({ onSearch, searchResults = [], onVideoSelect }) => {
   const [mobileLanguageExpanded, setMobileLanguageExpanded] = useState(false);
 
   useEffect(() => {
-    const loggedIn = localStorage.getItem('nextube_logged_in') === 'true';
-    setIsLoggedIn(loggedIn);
-    if (loggedIn) {
-      const savedProfile = localStorage.getItem('nextube_profile');
-      if (savedProfile) {
-        setUserProfile(JSON.parse(savedProfile));
-      }
+    setIsLoggedIn(!!user);
+    if (user) {
+      setUserProfile({
+        username: user.displayName,
+        email: user.email,
+        avatar: user.photoURL
+      });
+    } else {
+      setUserProfile(null);
     }
-  }, []);
+  }, [user]);
 
   const navLinkClass = ({ isActive }) =>
-    `text-sm font-medium transition-colors border-b-2 pb-1 -mb-px whitespace-nowrap ${
+    `text-xs font-semibold transition-colors border-b-2 pb-0.5 -mb-px whitespace-nowrap ${
       isActive
         ? 'text-white border-[#f97316]'
         : 'text-[#8e8e93] border-transparent hover:text-white'
@@ -165,8 +170,7 @@ const CinematicNavbar = ({ onSearch, searchResults = [], onVideoSelect }) => {
   };
 
   const handleLogout = () => {
-    localStorage.removeItem('nextube_logged_in');
-    localStorage.removeItem('nextube_profile');
+    logout();
     setIsLoggedIn(false);
     setUserProfile(null);
     setShowProfileDropdown(false);
@@ -176,9 +180,9 @@ const CinematicNavbar = ({ onSearch, searchResults = [], onVideoSelect }) => {
   return (
     <>
       <nav 
-        className={`fixed top-0 left-0 right-0 z-[100] transition-all duration-500 px-4 md:px-12 lg:px-16 xl:px-24 py-3.5 md:py-5 ${
+        className={`fixed top-0 left-0 right-0 z-[100] transition-all duration-500 px-4 md:px-10 lg:px-12 xl:px-16 py-2 md:py-2.5 ${
           !isHomepage || isScrolled || showMobileDrawer
-            ? 'bg-black/90 backdrop-blur-lg border-b border-white/[0.08] shadow-[0_15px_40px_rgba(0,0,0,0.9)]'
+            ? 'bg-black/90 backdrop-blur-lg border-b border-white/[0.08] shadow-[0_10px_30px_rgba(0,0,0,0.9)]'
             : 'bg-black md:bg-transparent'
         }`}
         style={{
@@ -241,16 +245,16 @@ const CinematicNavbar = ({ onSearch, searchResults = [], onVideoSelect }) => {
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
                 exit={{ opacity: 0 }}
-                className="flex items-center gap-3 lg:gap-5 w-full min-h-[44px]"
+                className="flex items-center gap-3 lg:gap-5 w-full min-h-[38px]"
               >
                 <div className="flex items-center gap-3 shrink-0">
-                  <Link to="/" className="flex items-center gap-2.5 cursor-pointer">
+                  <Link to="/" className="flex items-center gap-2 cursor-pointer">
                     <img 
                       src={playButtonImg} 
                       alt="PlayVerse" 
-                      className="w-9 h-9 object-contain rounded-full flex-shrink-0"
+                      className="w-8 h-8 object-contain rounded-full flex-shrink-0"
                     />
-                    <span className="text-lg font-bold text-white hidden sm:inline">PlayVerse</span>
+                    <span className="text-base font-bold tracking-tight text-white hidden sm:inline">PlayVerse</span>
                   </Link>
                 </div>
 
@@ -268,8 +272,8 @@ const CinematicNavbar = ({ onSearch, searchResults = [], onVideoSelect }) => {
                 </nav>
 
                 {/* Desktop search — icon on right */}
-                <div className="hidden lg:flex flex-1 min-w-0 justify-center xl:justify-start max-w-xl xl:max-w-2xl relative">
-                  <div className="w-full bg-[#1a1a1a] border border-white/[0.08] rounded-full pl-5 pr-3 py-2.5 flex items-center gap-2 focus-within:border-[#f97316]/50 transition-colors">
+                <div className="hidden lg:flex flex-1 min-w-0 justify-center xl:justify-start max-w-lg xl:max-w-xl relative">
+                  <div className="w-full bg-[#121212] border border-white/[0.06] rounded-full pl-4 pr-2.5 py-1.5 flex items-center gap-2 focus-within:border-[#f97316]/50 transition-colors">
                     <input
                       type="text"
                       value={searchQuery}
@@ -277,7 +281,7 @@ const CinematicNavbar = ({ onSearch, searchResults = [], onVideoSelect }) => {
                       onKeyDown={handleSearchKeyDown}
                       onFocus={() => setShowResults(searchQuery.length > 0)}
                       placeholder="Search for movies, shows and more..."
-                      className="bg-transparent border-none outline-none text-sm flex-1 min-w-0 text-white placeholder:text-[#8e8e93]"
+                      className="bg-transparent border-none outline-none text-xs flex-1 min-w-0 text-white placeholder:text-[#8e8e93]/80"
                     />
                     <button
                       type="button"
@@ -287,10 +291,10 @@ const CinematicNavbar = ({ onSearch, searchResults = [], onVideoSelect }) => {
                           navigate(`/search/${searchQuery}`);
                         }
                       }}
-                      className="p-2 text-[#8e8e93] hover:text-white rounded-full hover:bg-white/5 shrink-0"
+                      className="p-1.5 text-[#8e8e93] hover:text-white rounded-full hover:bg-white/5 shrink-0"
                       aria-label="Search"
                     >
-                      <Search size={20} />
+                      <Search size={16} />
                     </button>
                   </div>
 
@@ -347,12 +351,12 @@ const CinematicNavbar = ({ onSearch, searchResults = [], onVideoSelect }) => {
                     <button
                       type="button"
                       onClick={() => setShowLanguageDropdown(!showLanguageDropdown)}
-                      className="relative p-2 rounded-xl sm:p-2.5 text-[#8e8e93] hover:text-white hover:bg-white/[0.06] transition-colors flex items-center gap-1.5 cursor-pointer"
+                      className="relative p-1.5 rounded-lg sm:p-2 text-[#8e8e93] hover:text-white hover:bg-white/[0.06] transition-colors flex items-center gap-1 cursor-pointer"
                       aria-label="Select Language"
                     >
-                      <Globe size={20} className="shrink-0" />
-                      <span className="text-xs font-bold sm:inline hidden">{selectedLanguage?.name || 'English'}</span>
-                      <span className="text-xs font-bold inline sm:hidden">{selectedLanguage?.code.toUpperCase() || 'EN'}</span>
+                      <Globe size={16} className="shrink-0" />
+                      <span className="text-xs font-semibold sm:inline hidden">{selectedLanguage?.name || 'English'}</span>
+                      <span className="text-xs font-semibold inline sm:hidden">{selectedLanguage?.code.toUpperCase() || 'EN'}</span>
                     </button>
 
                     <AnimatePresence>
@@ -392,29 +396,29 @@ const CinematicNavbar = ({ onSearch, searchResults = [], onVideoSelect }) => {
                     className="lg:hidden p-2 text-white hover:text-[#f97316] transition-colors"
                     aria-label="Menu"
                   >
-                    <Menu size={22} />
+                    <Menu size={20} />
                   </button>
 
                   {/* Profile Menu dropdown widget */}
                   <div className="hidden lg:block relative" ref={profileRef}>
                     <div 
                       onClick={() => setShowProfileDropdown(!showProfileDropdown)}
-                      className="flex items-center gap-3 glass p-1.5 pr-5 rounded-2xl cursor-pointer group hover:border-orange-500/30 transition-all active:scale-95"
+                      className="flex items-center gap-2 bg-[#121212] border border-white/[0.06] p-1 pr-3 rounded-xl cursor-pointer group hover:border-[#f97316]/30 transition-all active:scale-95"
                     >
-                      <div className="w-9 h-9 rounded-full overflow-hidden border border-white/10">
+                      <div className="w-8 h-8 rounded-full overflow-hidden border border-white/10">
                         <img 
                           src={isLoggedIn && userProfile ? userProfile.avatar : "src/assets/man1.png"} 
                           alt="User" 
                           className="w-full h-full object-cover"
                         />
                       </div>
-                      <div className="hidden sm:block">
-                        <p className="text-[10px] font-bold text-white/40 uppercase tracking-widest">{isLoggedIn ? 'Premium' : 'Guest'}</p>
-                        <div className="flex items-center gap-1">
-                          <span className="text-xs font-bold text-white truncate max-w-[80px]">
+                      <div className="hidden sm:block text-left">
+                        <p className="text-[8px] font-bold text-[#8e8e93] uppercase tracking-wider">{isLoggedIn ? 'Premium' : 'Guest'}</p>
+                        <div className="flex items-center gap-0.5">
+                          <span className="text-xs font-semibold text-white truncate max-w-[80px]">
                             {isLoggedIn && userProfile ? userProfile.username : 'Sign In'}
                           </span>
-                          <ChevronDown size={12} className="text-white/30 group-hover:text-orange-500 transition-colors" />
+                          <ChevronDown size={10} className="text-[#8e8e93] group-hover:text-[#f97316] transition-colors" />
                         </div>
                       </div>
                     </div>

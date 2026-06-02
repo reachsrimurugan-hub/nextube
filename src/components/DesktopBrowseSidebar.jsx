@@ -22,7 +22,6 @@ const genreLinkClass = ({ isActive }) =>
   }`;
 
 const BROWSE = [
-  { label: 'All', to: '/category/All', icon: LayoutGrid },
   { label: 'Travel & Vlogs', to: '/category/TV Series', icon: Compass },
   { label: 'Movies', to: '/category/Movies', icon: Film },
   { label: 'Anime', to: '/category/Anime', icon: Sparkles },
@@ -50,12 +49,7 @@ const DesktopBrowseSidebar = () => {
             Browse
           </p>
           <nav className="space-y-0.5">
-            {BROWSE.map(({ label, to, icon: Icon }) => (
-              <NavLink key={to} to={to} className={browseLinkClass} end={to === '/category/All'}>
-                <Icon size={18} strokeWidth={1.75} />
-                {label}
-              </NavLink>
-            ))}
+           
           </nav>
         </div>
         <div>

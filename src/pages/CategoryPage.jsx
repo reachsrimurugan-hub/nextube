@@ -7,7 +7,6 @@ import { searchVideos, getPopularMovies } from '../services/cinematicApi';
 import { useLanguage } from '../context/LanguageContext';
 
 const FILTER_PILLS = [
-  { label: 'All', to: '/category/All' },
   { label: 'Travel & Vlogs', to: '/category/TV Series' },
   { label: 'Movies', to: '/category/Movies' },
   { label: 'Anime', to: '/category/Anime' },
@@ -77,7 +76,7 @@ const CategoryPage = () => {
         onVideoSelect={handleVideoSelect}
       />
 
-      <div className="flex w-full max-w-[1920px] mx-auto pt-[4.5rem] lg:pt-20">
+      <div className="flex w-full max-w-[1920px] mx-auto pt-[3.75rem] lg:pt-16">
         <DesktopBrowseSidebar />
 
         <main className="flex-1 min-w-0 px-4 sm:px-6 lg:px-10 py-6 lg:py-8">

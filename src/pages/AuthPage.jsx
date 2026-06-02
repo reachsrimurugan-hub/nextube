@@ -2,17 +2,19 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Sparkles, Shield, User, Lock, Mail, ChevronRight } from 'lucide-react';
-import axios from 'axios';
+import { FcGoogle } from 'react-icons/fc';
+import { 
+  signInWithEmailAndPassword, 
+  createUserWithEmailAndPassword,
+  updateProfile 
+} from 'firebase/auth';
+import { auth } from '../lib/firebase';
+import { useAuth } from '../context/AuthContext';
 import playButtonImg from '../assets/play-button.png';
-
-const API_URL = import.meta.env.VITE_API_URL || (
-  typeof window !== 'undefined' && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')
-    ? 'http://localhost:5000/api'
-    : '/api'
-);
 
 const AuthPage = () => {
   const navigate = useNavigate();
+  const { loginWithGoogle } = useAuth();
   const [activeTab, setActiveTab] = useState('login');
   const [form, setForm] = useState({ name: '', email: '', password: '' });
   const [errors, setErrors] = useState({});
@@ -62,114 +64,47 @@ const AuthPage = () => {
 
     try {
       if (activeTab === 'register') {
-        // 1. Try Backend API for Sign Up
-        try {
-          const response = await axios.post(`${API_URL}/auth/register`, {
-            username: form.name,
-            email: normalizedEmail,
-            password: form.password
-          });
-
-          if (response.data.success) {
-            const registeredUser = response.data.user;
-            localStorage.setItem('nextube_profile', JSON.stringify(registeredUser));
-            localStorage.setItem('nextube_logged_in', 'true');
-            navigate('/');
-            return;
-          }
-        } catch (apiError) {
-          // If the backend specifically rejected with 400 (e.g. duplicate user), show that exact error
-          if (apiError.response && apiError.response.status === 400) {
-            const msg = apiError.response.data?.error || 'User with this email already exists';
-            setErrors({ server: msg });
-            setLoading(false);
-            return;
-          }
-          // If connection was refused or general network error, trigger LocalStorage fallback DB
-          console.warn("API Register failed, trying client-side LocalStorage DB fallback:", apiError.message);
-          throw apiError;
-        }
-      } else {
-        // 2. Try Backend API for Sign In
-        try {
-          const response = await axios.post(`${API_URL}/auth/login`, {
-            email: normalizedEmail,
-            password: form.password
-          });
-
-          if (response.data.success) {
-            const loggedInUser = response.data.user;
-            localStorage.setItem('nextube_profile', JSON.stringify(loggedInUser));
-            localStorage.setItem('nextube_logged_in', 'true');
-            navigate('/');
-            return;
-          }
-        } catch (apiError) {
-          // If the backend explicitly returned a 401/400 validation error, display it directly
-          if (apiError.response && (apiError.response.status === 401 || apiError.response.status === 400)) {
-            const msg = apiError.response.data?.error || 'Invalid email or password';
-            setErrors({ server: msg });
-            setLoading(false);
-            return;
-          }
-          console.warn("API Login failed, trying client-side LocalStorage DB fallback:", apiError.message);
-          throw apiError;
-        }
-      }
-    } catch (fallbackTrigger) {
-      // client-side LocalStorage DB Fallback
-      const localUsers = JSON.parse(localStorage.getItem('nextube_local_users') || '[]');
-
-      // Seed seeded user from users.json if the list is empty
-      if (localUsers.length === 0) {
-        localUsers.push({
-          username: "sri",
-          email: "reachsrimurugan@gmail.com",
-          password: "password123",
-          tier: "Cinema Elite",
-          avatar: "src/assets/man1.png",
-          joined: "May 2026"
+        const userCredential = await createUserWithEmailAndPassword(auth, normalizedEmail, form.password);
+        await updateProfile(userCredential.user, {
+          displayName: form.name
         });
-        localStorage.setItem('nextube_local_users', JSON.stringify(localUsers));
-      }
-
-      if (activeTab === 'register') {
-        const exists = localUsers.some(u => u.email.toLowerCase() === normalizedEmail);
-        if (exists) {
-          setErrors({ server: 'User with this email already exists' });
-          setLoading(false);
-          return;
-        }
-
-        const newUser = {
-          username: form.name,
-          email: normalizedEmail,
-          password: form.password,
-          tier: 'Cinema Elite',
-          avatar: 'src/assets/man1.png',
-          joined: new Date().toLocaleDateString('en-US', { month: 'long', year: 'numeric' })
-        };
-
-        localUsers.push(newUser);
-        localStorage.setItem('nextube_local_users', JSON.stringify(localUsers));
-        localStorage.setItem('nextube_profile', JSON.stringify(newUser));
-        localStorage.setItem('nextube_logged_in', 'true');
-        navigate('/');
       } else {
-        const user = localUsers.find(
-          u => u.email.toLowerCase() === normalizedEmail && u.password === form.password
-        );
-
-        if (!user) {
-          setErrors({ server: 'Invalid email or password' });
-          setLoading(false);
-          return;
-        }
-
-        localStorage.setItem('nextube_profile', JSON.stringify(user));
-        localStorage.setItem('nextube_logged_in', 'true');
-        navigate('/');
+        await signInWithEmailAndPassword(auth, normalizedEmail, form.password);
       }
+      navigate('/');
+    } catch (authError) {
+      console.error("Firebase Authentication Error:", authError);
+      let errorMsg = 'Authentication failed';
+      if (authError.code === 'auth/email-already-in-use') {
+        errorMsg = 'User with this email already exists';
+      } else if (authError.code === 'auth/weak-password') {
+        errorMsg = 'Password must be at least 6 characters';
+      } else if (authError.code === 'auth/invalid-email') {
+        errorMsg = 'Please provide a valid email';
+      } else if (
+        authError.code === 'auth/user-not-found' || 
+        authError.code === 'auth/wrong-password' || 
+        authError.code === 'auth/invalid-credential'
+      ) {
+        errorMsg = 'Invalid email or password';
+      } else {
+        errorMsg = authError.message;
+      }
+      setErrors({ server: errorMsg });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleGoogleSignIn = async () => {
+    setLoading(true);
+    setErrors({});
+    try {
+      await loginWithGoogle();
+      navigate('/');
+    } catch (authError) {
+      console.error("Google Sign-In Error:", authError);
+      setErrors({ server: authError.message || 'Google authentication failed' });
     } finally {
       setLoading(false);
     }
@@ -302,7 +237,7 @@ const AuthPage = () => {
             <button
               type="submit"
               disabled={loading}
-              className="w-full bg-orange-500 hover:bg-orange-600 disabled:bg-orange-500/50 text-white font-black py-4 rounded-2xl flex items-center justify-center gap-2 transition-all shadow-xl shadow-orange-500/20 active:scale-[0.98] text-xs uppercase tracking-widest"
+              className="w-full bg-orange-500 hover:bg-orange-600 disabled:bg-orange-500/50 text-white font-black py-4 rounded-2xl flex items-center justify-center gap-2 transition-all shadow-xl shadow-orange-500/20 active:scale-[0.98] text-xs uppercase tracking-widest cursor-pointer"
             >
               {loading ? (
                 <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
@@ -314,6 +249,24 @@ const AuthPage = () => {
               )}
             </button>
           </form>
+
+          {/* Google Sign-in Option */}
+          <div className="relative my-6 flex items-center justify-center">
+            <div className="absolute inset-0 flex items-center">
+              <div className="w-full border-t border-white/10"></div>
+            </div>
+            <span className="relative px-3 bg-[#130d0a] text-[10px] font-black uppercase tracking-widest text-white/40">OR</span>
+          </div>
+
+          <button
+            type="button"
+            onClick={handleGoogleSignIn}
+            disabled={loading}
+            className="w-full bg-white hover:bg-white/90 text-black font-black py-4 rounded-2xl flex items-center justify-center gap-3 transition-all active:scale-[0.98] text-xs uppercase tracking-widest cursor-pointer shadow-lg"
+          >
+            <FcGoogle size={18} className="flex-shrink-0" />
+            <span>Continue with Google</span>
+          </button>
 
           {/* Premium tier promise statement */}
           <div className="mt-8 flex items-center gap-3 bg-white/5 px-4 py-3 rounded-2xl border border-white/5">

@@ -8,6 +8,14 @@ import {
   ChevronLeft, Share2, Plus, ThumbsUp, Info, Sparkles,
   Heart, Bookmark, Clock, Check
 } from 'lucide-react';
+import { useAuth } from '../context/AuthContext';
+import { 
+  subscribeToPlaylists, 
+  createPlaylist, 
+  addVideoToPlaylist, 
+  removeVideoFromPlaylist, 
+  addToRecentlyWatched 
+} from '../services/playlistService';
 
 const VideoDetails = () => {
   const { videoId } = useParams();
@@ -25,6 +33,21 @@ const VideoDetails = () => {
   const [isSavedWatchLater, setIsSavedWatchLater] = useState(false);
   const [isSavedFavorites, setIsSavedFavorites] = useState(false);
   const [toastMessage, setToastMessage] = useState('');
+
+  // Firebase Auth & Playlist state
+  const { user } = useAuth();
+  const [showPlaylistModal, setShowPlaylistModal] = useState(false);
+  const [playlists, setPlaylists] = useState([]);
+  const [newPlaylistName, setNewPlaylistName] = useState('');
+  const [newPlaylistDesc, setNewPlaylistDesc] = useState('');
+  const [showCreateForm, setShowCreateForm] = useState(false);
+
+  const triggerToast = (msg) => {
+    setToastMessage(msg);
+    setTimeout(() => {
+      setToastMessage('');
+    }, 3000);
+  };
 
 
 
@@ -68,6 +91,27 @@ const VideoDetails = () => {
     fetchVideoData();
     window.scrollTo(0, 0);
   }, [videoId]);
+
+  // Sync history to Firestore when video is loaded
+  useEffect(() => {
+    if (user && video) {
+      addToRecentlyWatched(user.uid, {
+        id: videoId,
+        title: video.title,
+        thumbnail: video.thumbnail,
+        channelTitle: video.channelTitle
+      });
+    }
+  }, [user, video, videoId]);
+
+  // Listen to user's playlists when modal is open
+  useEffect(() => {
+    if (!user || !showPlaylistModal) return;
+    const unsubscribe = subscribeToPlaylists(user.uid, (data) => {
+      setPlaylists(data);
+    });
+    return () => unsubscribe();
+  }, [user, showPlaylistModal]);
 
   const handleVideoSelect = (newVideo) => {
     const id = newVideo.videoId || newVideo.id;
@@ -241,8 +285,150 @@ const VideoDetails = () => {
         )}
       </AnimatePresence>
 
+      {/* Save to Playlist Modal */}
+      <AnimatePresence>
+        {showPlaylistModal && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-[500] bg-black/85 backdrop-blur-md flex items-center justify-center p-4"
+          >
+            <motion.div
+              initial={{ scale: 0.95, y: 30 }}
+              animate={{ scale: 1, y: 0 }}
+              exit={{ scale: 0.95, y: 30 }}
+              className="glass-premium max-w-sm w-full rounded-[2.5rem] border border-white/10 p-6 relative overflow-hidden shadow-2xl text-left"
+            >
+              {/* Backglow */}
+              <div className="absolute -top-24 -right-24 w-60 h-60 bg-orange-500/10 blur-[100px] rounded-full" />
+
+              <h3 className="text-sm font-bold uppercase tracking-widest text-[#f97316] font-mono mb-4">Save Video to...</h3>
+
+              {/* List of playlists with checkboxes */}
+              <div className="space-y-3 max-h-60 overflow-y-auto pr-1 custom-scrollbar">
+                {playlists.map((playlist) => {
+                  const inPlaylist = playlist.videos?.some(v => v.videoId === videoId);
+                  return (
+                    <label key={playlist.id} className="flex items-center gap-3 p-3 rounded-2xl bg-white/5 border border-white/5 hover:border-white/10 cursor-pointer select-none">
+                      <input 
+                        type="checkbox" 
+                        checked={inPlaylist || false}
+                        onChange={async () => {
+                          if (inPlaylist) {
+                            await removeVideoFromPlaylist(playlist.id, videoId);
+                            triggerToast(`Removed from ${playlist.title}`);
+                          } else {
+                            await addVideoToPlaylist(playlist.id, {
+                              id: videoId,
+                              title: video.title,
+                              thumbnail: video.thumbnail,
+                              duration: video.duration || ''
+                            });
+                            triggerToast(`Added to ${playlist.title}`);
+                          }
+                        }}
+                        className="accent-[#f97316] rounded w-4 h-4 cursor-pointer"
+                      />
+                      <div className="flex-1 min-w-0">
+                        <p className="text-xs font-bold text-white truncate">{playlist.title}</p>
+                        <p className="text-[9px] text-[#8e8e93] truncate">{playlist.videos?.length || 0} videos</p>
+                      </div>
+                    </label>
+                  );
+                })}
+
+                {playlists.length === 0 && (
+                  <p className="text-xs text-white/40 italic py-4 text-center">No playlists created yet.</p>
+                )}
+              </div>
+
+              {/* Create Playlist Inline Form */}
+              {showCreateForm ? (
+                <form onSubmit={async (e) => {
+                  e.preventDefault();
+                  if (!newPlaylistName.trim() || !user) return;
+                  try {
+                    const newId = await createPlaylist(user.uid, newPlaylistName, newPlaylistDesc);
+                    await addVideoToPlaylist(newId, {
+                      id: videoId,
+                      title: video.title,
+                      thumbnail: video.thumbnail,
+                      duration: video.duration || ''
+                    });
+                    triggerToast(`Created & added to ${newPlaylistName}`);
+                    setNewPlaylistName('');
+                    setNewPlaylistDesc('');
+                    setShowCreateForm(false);
+                  } catch (err) {
+                    console.error(err);
+                  }
+                }} className="mt-4 pt-4 border-t border-white/10 space-y-3">
+                  <div className="space-y-1">
+                    <label className="text-[9px] font-bold text-white/40 uppercase tracking-widest font-mono">Name</label>
+                    <input
+                      type="text"
+                      value={newPlaylistName}
+                      onChange={(e) => setNewPlaylistName(e.target.value)}
+                      placeholder="e.g. Chill Music"
+                      className="w-full bg-black border border-white/10 px-3 py-2 rounded-xl text-xs text-white focus:outline-none focus:border-[#f97316]"
+                      required
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <label className="text-[9px] font-bold text-white/40 uppercase tracking-widest font-mono">Description</label>
+                    <input
+                      type="text"
+                      value={newPlaylistDesc}
+                      onChange={(e) => setNewPlaylistDesc(e.target.value)}
+                      placeholder="Optional details..."
+                      className="w-full bg-black border border-white/10 px-3 py-2 rounded-xl text-xs text-white focus:outline-none focus:border-[#f97316]"
+                    />
+                  </div>
+                  <div className="flex gap-2 justify-end pt-1">
+                    <button
+                      type="button"
+                      onClick={() => setShowCreateForm(false)}
+                      className="px-3 py-1.5 text-white/60 text-[10px] font-bold uppercase tracking-widest"
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      type="submit"
+                      className="px-4 py-1.5 bg-[#f97316] text-white rounded-lg text-[10px] font-bold uppercase tracking-widest cursor-pointer"
+                    >
+                      Create
+                    </button>
+                  </div>
+                </form>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => setShowCreateForm(true)}
+                  className="w-full mt-4 flex items-center justify-center gap-1.5 py-3 border border-dashed border-white/10 hover:border-white/20 rounded-2xl text-xs font-bold text-[#f97316] transition-all cursor-pointer"
+                >
+                  <Plus size={14} /> Create Playlist
+                </button>
+              )}
+
+              <div className="mt-6 flex justify-end border-t border-white/5 pt-4">
+                <button
+                  onClick={() => {
+                    setShowPlaylistModal(false);
+                    setShowCreateForm(false);
+                  }}
+                  className="px-5 py-2.5 bg-white/5 hover:bg-white/10 rounded-xl text-xs font-black uppercase tracking-widest text-white/80 transition-all cursor-pointer"
+                >
+                  Close
+                </button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
       {/* Immersive Watch Page Layout with dynamic animated top padding */}
-      <div className="w-full flex flex-col pt-[4.5rem] lg:pt-20">
+      <div className="w-full flex flex-col pt-[3.75rem] lg:pt-16">
 
         {/* Back navigation header */}
         <div className="max-w-[1700px] w-full mx-auto px-4 sm:px-6 lg:px-10 py-3 flex items-center justify-between">
@@ -342,14 +528,20 @@ const VideoDetails = () => {
                     </span>
                   </button>
 
-                  {/* More Button */}
+                  {/* Save Button */}
                   <button
-                    onClick={() => setShowInfoOverlay(true)}
+                    onClick={() => {
+                      if (!user) {
+                        navigate('/auth');
+                      } else {
+                        setShowPlaylistModal(true);
+                      }
+                    }}
                     className="flex flex-col items-center gap-1.5 cursor-pointer text-white/60 hover:text-orange-500 transition-colors group"
                   >
                     <Plus size={18} className="group-hover:scale-110 transition-transform" />
                     <span className="text-[10px] font-black uppercase tracking-wider font-mono">
-                      More
+                      Save
                     </span>
                   </button>
                 </div>

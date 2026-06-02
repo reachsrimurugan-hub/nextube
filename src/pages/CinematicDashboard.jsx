@@ -5,13 +5,15 @@ import CinematicHero from '../components/CinematicHero';
 import VideoListItem from '../components/VideoListItem';
 import VideoGridCard from '../components/VideoGridCard';
 import { getPopularMovies, searchVideos } from '../services/cinematicApi';
-import { LayoutGrid, Film, Compass, Play } from 'lucide-react';
+import { LayoutGrid, Film, Compass, Play, Mic, Trophy } from 'lucide-react';
 import { useLanguage } from '../context/LanguageContext';
 
 const DASHBOARD_CATEGORIES = [
   { name: 'All', icon: LayoutGrid, term: 'All' },
   { name: 'Movie Trailers', icon: Film, term: 'Movie Trailers' },
   { name: 'Vlog & Travel', icon: Compass, term: 'Vlog & Travel' },
+  { name: 'Podcasts', icon: Mic, term: 'Podcasts' },
+  { name: 'Sports', icon: Trophy, term: 'Sports' },
 ];
 
 const CinematicDashboard = () => {
@@ -21,6 +23,8 @@ const CinematicDashboard = () => {
   const [allVideos, setAllVideos] = useState([]);
   const [trailerVideos, setTrailerVideos] = useState([]);
   const [travelVideos, setTravelVideos] = useState([]);
+  const [podcastVideos, setPodcastVideos] = useState([]);
+  const [sportsVideos, setSportsVideos] = useState([]);
   const [visibleCount, setVisibleCount] = useState(20);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
@@ -68,6 +72,18 @@ const CinematicDashboard = () => {
           } catch (err) {
             console.error('Failed to fetch travel vlogs', err);
           }
+          try {
+            const podcastRes = await searchVideos(`${languagePrefix}podcast`);
+            setPodcastVideos(podcastRes || []);
+          } catch (err) {
+            console.error('Failed to fetch podcasts', err);
+          }
+          try {
+            const sportsRes = await searchVideos(`${languagePrefix}sports`);
+            setSportsVideos(sportsRes || []);
+          } catch (err) {
+            console.error('Failed to fetch sports videos', err);
+          }
           results = []; // No general feed needed if showing Movie Trailers & Travel Vlogs
         } else {
           results = await searchVideos(`${languagePrefix}${category}`);
@@ -98,6 +114,14 @@ const CinematicDashboard = () => {
     return travelVideos.filter((v) => (v.videoId || v.id) !== heroId);
   }, [travelVideos, heroId]);
 
+  const podcastRow = useMemo(() => {
+    return podcastVideos.filter((v) => (v.videoId || v.id) !== heroId);
+  }, [podcastVideos, heroId]);
+
+  const sportsRow = useMemo(() => {
+    return sportsVideos.filter((v) => (v.videoId || v.id) !== heroId);
+  }, [sportsVideos, heroId]);
+
   const handleVideoSelect = useCallback(
     (video) => {
       navigate(`/watch/${video.videoId || video.id}`);
@@ -112,7 +136,7 @@ const CinematicDashboard = () => {
   };
 
   const showWebRows =
-    !searchQuery && activeCategory === 'All' && !loading && (movieRow.length > 0 || travelRow.length > 0);
+    !searchQuery && activeCategory === 'All' && !loading && (movieRow.length > 0 || travelRow.length > 0 || podcastRow.length > 0 || sportsRow.length > 0);
 
   return (
     <div className="min-h-screen bg-black text-white pb-24 lg:pb-10">
@@ -122,7 +146,7 @@ const CinematicDashboard = () => {
         onVideoSelect={handleVideoSelect}
       />
 
-      <main className="relative z-10 w-full max-w-[1800px] mx-auto px-4 sm:px-6 lg:px-10 pt-[4.5rem] lg:pt-24 space-y-8 lg:space-y-12">
+      <main className="relative z-10 w-full max-w-[1800px] mx-auto px-4 sm:px-6 lg:px-10 pt-[3.75rem] lg:pt-20 space-y-8 lg:space-y-12">
         {!searchQuery && activeCategory === 'All' && heroVideo && (
           <CinematicHero video={heroVideo} onPlay={handleVideoSelect} />
         )}
@@ -159,7 +183,7 @@ const CinematicDashboard = () => {
 
         <section className="hidden lg:block">
           <div className="flex items-center justify-between mb-4">
-            <h2 className="text-xl font-bold text-white">Browse</h2>
+            <h2 className="text-xl font-bold text-white">Browse for more videos</h2>
             <Link to="/category/All" className="text-sm font-semibold text-[#f97316] hover:text-orange-400">
               View all videos
             </Link>
@@ -206,6 +230,44 @@ const CinematicDashboard = () => {
               <div className="md:hidden divide-y divide-white/[0.06]">
                 {travelRow.slice(0, 5).map((video, idx) => (
                   <VideoListItem key={video.videoId || video.id || `travel-${idx}`} video={video} onClick={handleVideoSelect} />
+                ))}
+              </div>
+            </section>
+
+            <section>
+              <div className="flex items-center justify-between mb-4 lg:mb-5">
+                <h2 className="text-lg lg:text-xl font-bold text-white">Podcasts</h2>
+                <Link to="/category/Podcasts" className="text-sm font-semibold text-[#f97316] hover:text-orange-400">
+                  View all
+                </Link>
+              </div>
+              <div className="hidden md:grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 xl:grid-cols-5 gap-4 lg:gap-6">
+                {podcastRow.slice(0, 5).map((video, idx) => (
+                  <VideoGridCard key={video.videoId || video.id || `podcast-${idx}`} video={video} onClick={handleVideoSelect} />
+                ))}
+              </div>
+              <div className="md:hidden divide-y divide-white/[0.06]">
+                {podcastRow.slice(0, 5).map((video, idx) => (
+                  <VideoListItem key={video.videoId || video.id || `podcast-${idx}`} video={video} onClick={handleVideoSelect} />
+                ))}
+              </div>
+            </section>
+
+            <section>
+              <div className="flex items-center justify-between mb-4 lg:mb-5">
+                <h2 className="text-lg lg:text-xl font-bold text-white">Sports</h2>
+                <Link to="/category/Sports" className="text-sm font-semibold text-[#f97316] hover:text-orange-400">
+                  View all
+                </Link>
+              </div>
+              <div className="hidden md:grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 xl:grid-cols-5 gap-4 lg:gap-6">
+                {sportsRow.slice(0, 5).map((video, idx) => (
+                  <VideoGridCard key={video.videoId || video.id || `sports-${idx}`} video={video} onClick={handleVideoSelect} />
+                ))}
+              </div>
+              <div className="md:hidden divide-y divide-white/[0.06]">
+                {sportsRow.slice(0, 5).map((video, idx) => (
+                  <VideoListItem key={video.videoId || video.id || `sports-${idx}`} video={video} onClick={handleVideoSelect} />
                 ))}
               </div>
             </section>
