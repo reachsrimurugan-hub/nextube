@@ -402,7 +402,13 @@ const CinematicNavbar = ({ onSearch, searchResults = [], onVideoSelect }) => {
                   {/* Profile Menu dropdown widget */}
                   <div className="hidden lg:block relative" ref={profileRef}>
                     <div 
-                      onClick={() => setShowProfileDropdown(!showProfileDropdown)}
+                      onClick={() => {
+                        if (isLoggedIn) {
+                          setShowProfileDropdown(!showProfileDropdown);
+                        } else {
+                          navigate('/auth');
+                        }
+                      }}
                       className="flex items-center gap-2 bg-[#121212] border border-white/[0.06] p-1 pr-3 rounded-xl cursor-pointer group hover:border-[#f97316]/30 transition-all active:scale-95"
                     >
                       <div className="w-8 h-8 rounded-full overflow-hidden border border-white/10">
@@ -519,14 +525,14 @@ const CinematicNavbar = ({ onSearch, searchResults = [], onVideoSelect }) => {
                   </div>
                   <div>
                     <h3 className="font-extrabold text-white text-sm">
-                      {isLoggedIn && userProfile ? userProfile.username : 'sri'}
+                      {isLoggedIn && userProfile ? userProfile.username : 'Guest'}
                     </h3>
                     <Link 
-                      to="/profile"
+                      to={isLoggedIn ? "/profile" : "/auth"}
                       onClick={() => setShowMobileDrawer(false)}
                       className="text-[10px] font-black text-orange-500 uppercase tracking-widest block hover:text-white transition-colors"
                     >
-                      View Profile
+                      {isLoggedIn ? 'View Profile' : 'Connect Account'}
                     </Link>
                   </div>
                 </div>

@@ -23,7 +23,7 @@ const DEFAULT_AVATARS = [man1, man2, man3, woman1, woman2, woman3];
 
 const ProfilePage = () => {
   const navigate = useNavigate();
-  const { user, logout } = useAuth();
+  const { user, logout, loading } = useAuth();
 
   const [profile, setProfile] = useState({
     username: '',
@@ -79,6 +79,10 @@ const ProfilePage = () => {
   };
 
   useEffect(() => {
+    if (!loading && !user) {
+      navigate('/auth');
+      return;
+    }
     setIsLoggedIn(!!user);
     if (user) {
       setProfile({
@@ -89,7 +93,7 @@ const ProfilePage = () => {
         joined: 'June 2026'
       });
     }
-  }, [user]);
+  }, [user, loading, navigate]);
 
   const handleLogout = () => {
     logout();

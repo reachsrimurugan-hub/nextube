@@ -1,11 +1,13 @@
 import React from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { Home, Flame, Search, Tv, User } from 'lucide-react';
+import { useAuth } from '../context/AuthContext';
 
 const CinematicBottomNav = () => {
   const location = useLocation();
   const navigate = useNavigate();
   const currentPath = location.pathname;
+  const { user } = useAuth();
 
   const hideOnPaths = ['/watch/', '/auth'];
   if (hideOnPaths.some((p) => currentPath.startsWith(p))) return null;
@@ -34,7 +36,13 @@ const CinematicBottomNav = () => {
             <button
               key={item.label}
               type="button"
-              onClick={() => navigate(item.path)}
+              onClick={() => {
+                if (item.path === '/profile' && !user) {
+                  navigate('/auth');
+                } else {
+                  navigate(item.path);
+                }
+              }}
               className="flex flex-col items-center gap-1 min-w-[56px] py-1"
             >
               <Icon
